@@ -8,13 +8,19 @@ pub mod players
   use super::*;
 
   pub struct MidiPlayer {
-    connection: Option<MidiOutputConnection>
+    connection: Option<MidiOutputConnection>,
+    instrument: u8,
+    fundamental: u8
   }
 
   impl MidiPlayer{
 
     pub fn new() -> Result<Self, Box<dyn Error>> {
-      let mut new_midi_player = Self{connection:None};
+      let mut new_midi_player = Self{
+        connection:None,
+        instrument:27, // Electric guitar
+        fundamental: 40 // E1 (Lowest guitar string in standard tuning)
+      };
       
        new_midi_player.connect()?;
        Ok(new_midi_player)
@@ -42,22 +48,24 @@ pub mod players
       Ok(())
     }
 
-  
-    pub fn play_notes(&mut self) -> Result<(), Box<dyn Error>>{
-      if let Some(ref mut connection) = self.connection{
 
-        for n in 0..5 {
-          connection.send(&[0x90, 60 + n, 127])?; // Note On
-          thread::sleep(time::Duration::from_millis(500)); // Hold the note for 500 ms
+    pub fn play_notes(&mut self, notes : &[i32]) -> Result<(), Box<dyn Error>>{
+      if let Some(ref mut connection) = self.connection{
+        connection.send(&[0xC0, self.instrument])?; // Select instrument
+
+        for &note in notes {
+          connection.send(&[0x90, self.fundamental + note as u8, 127])?; // Note On
+          thread::sleep(time::Duration::from_millis(250)); // Hold the note for 500 ms
         }
+
         thread::sleep(time::Duration::from_millis(500)); // Hold the note for 500 ms
 
-        for n in 0..5 {
-          connection.send(&[0x80, 60 + n, 0])?; // Note Off
+        for &note in notes {
+          connection.send(&[0x80, self.fundamental + note as u8, 0])?; // Note Off
         }
       }
 
-        Ok(())
+      Ok(())
     }
   }
 }
